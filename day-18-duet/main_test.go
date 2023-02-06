@@ -7,7 +7,7 @@ import (
 )
 
 func TestPart1Solve(t *testing.T) {
-	assert.Equal(t, 1728, solvePart1())
+	assert.Equal(t, 7071, solvePart1())
 }
 
 func TestPart2Solve(t *testing.T) {

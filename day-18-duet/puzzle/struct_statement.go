@@ -12,6 +12,8 @@ const (
 	Sound
 	Recovery
 	JumpGreaterZero
+	Send
+	Receive
 )
 
 // Interface to enable Statements to reference Registers and Number equally
@@ -51,7 +53,9 @@ type Statement struct {
 	origLine   string
 }
 
-func (s *Statement) exec(u *Universe) {
+// Execute the statement, pointed to by idxCurrentStatement.
+// Since a statement can influence the RunEnv, we require the RunEnv to be sent as well
+func (s *Statement) exec(p *Program) {
 	switch s.Operation {
 	case Set:
 		s.valueLeft.setValue(s.valueRight.getValue())
@@ -64,21 +68,38 @@ func (s *Statement) exec(u *Universe) {
 	case Sound:
 		if s.valueLeft.getValue() != 0 {
 			fmt.Println("exec: playing sound:", s.valueLeft.getValue())
-			u.valueLastPlayed = s.valueLeft.getValue()
+			p.valueLastPlayed = s.valueLeft.getValue()
 		}
 	case Recovery:
 		if s.valueLeft.getValue() != 0 {
 			fmt.Println("exec: isRecovered is true")
-			u.isRecovered = true
+			p.state = isRecovered
 		} else {
 			fmt.Println("exec: isRecovered is still false: leftValue is 0")
 		}
 	case JumpGreaterZero:
 		if s.valueLeft.getValue() != 0 {
-			u.idxCurrentStatement += -1 + s.valueRight.getValue()
-			fmt.Println("exec: jump to statement: ", u.idxCurrentStatement)
+			p.idxCurrentStatement += -1 + s.valueRight.getValue()
+			fmt.Println("exec: jump to statement: ", p.idxCurrentStatement)
 		} else {
 			fmt.Println("exec: skip jumping, leftValue is 0")
 		}
+	case Send:
+		fmt.Println("exec: sending value to other program:", s.valueLeft.getValue())
+		p.occerencesValueSend++
+		p.chanToOtherProgram <- s.valueLeft.getValue()
+	case Receive:
+		p.state = isReceiving
+		fmt.Println("exec: waiting to receive value from otherprogram:", p.chanToUniverse)
+    p.chanToUniverse <- struct {
+      programId string,
+      state stateProgram 
+    }{
+      programId: p.identifier,
+      state: isReceiving,
+    }
+		// s.valueLeft.setValue(<-p.chanToOtherProgram)
+		fmt.Println("exec: value received:", s.valueLeft.getValue())
+		p.state = isRunning
 	}
 }
